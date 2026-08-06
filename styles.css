@@ -1,0 +1,69 @@
+.powerlink-modal h2 {
+	margin-top: 0;
+}
+
+.powerlink-muted {
+	color: var(--text-muted);
+	font-size: var(--font-ui-small);
+}
+
+.powerlink-error {
+	color: var(--text-error);
+	font-size: var(--font-ui-small);
+}
+
+.powerlink-path {
+	font-family: var(--font-monospace);
+	word-break: break-all;
+}
+
+.powerlink-url-input {
+	width: 100%;
+}
+
+.powerlink-prompt-input {
+	width: 100%;
+	min-width: 280px;
+}
+
+.powerlink-recent-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	margin: 1em 0 0.5em;
+	font-weight: 600;
+}
+
+.powerlink-recent-list {
+	display: flex;
+	flex-direction: column;
+	gap: 0.35em;
+	max-height: 220px;
+	overflow-y: auto;
+	margin-bottom: 1em;
+}
+
+.powerlink-recent-item {
+	text-align: left;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	width: 100%;
+}
+
+.powerlink-actions {
+	display: flex;
+	justify-content: flex-end;
+	gap: 0.5em;
+	margin-top: 1em;
+}
+
+.powerlink-stack {
+	display: flex;
+	flex-direction: column;
+	gap: 0.5em;
+}
+
+.powerlink-choice {
+	width: 100%;
+}
