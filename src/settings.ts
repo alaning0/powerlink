@@ -131,7 +131,10 @@ export class PowerlinkSettingTab extends PluginSettingTab {
 					}),
 			);
 
-		containerEl.createEl('h3', { text: 'Advanced (desktop only)' });
+		new Setting(containerEl)
+			.setName('Advanced (desktop only)')
+			.setHeading();
+
 		containerEl.createEl('p', {
 			text: 'Used by the Powerlink Advanced ribbon for YouTube and Instagram extraction via yt-dlp and Whisper.',
 			cls: 'setting-item-description',

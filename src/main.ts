@@ -42,19 +42,19 @@ export default class PowerlinkPlugin extends Plugin {
 		});
 
 		this.addCommand({
-			id: 'open-powerlink',
-			name: 'Open Powerlink',
+			id: 'open',
+			name: 'Open',
 			callback: () => this.startFlow(false),
 		});
 
 		if (Platform.isDesktopApp) {
-			this.addRibbonIcon('sparkles', 'Powerlink Advanced', () => {
+			this.addRibbonIcon('sparkles', 'Powerlink advanced', () => {
 				this.startFlow(true);
 			});
 
 			this.addCommand({
-				id: 'open-powerlink-advanced',
-				name: 'Open Powerlink Advanced',
+				id: 'open-advanced',
+				name: 'Open advanced',
 				callback: () => this.startFlow(true),
 			});
 		}

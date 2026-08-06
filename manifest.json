@@ -2,7 +2,7 @@
 	"id": "powerlink",
 	"name": "Powerlink",
 	"version": "1.0.0",
-	"minAppVersion": "1.0.0",
+	"minAppVersion": "1.4.0",
 	"description": "Turn a URL into a note via OpenAI, from paste or your Ideas API.",
 	"author": "Alan",
 	"isDesktopOnly": false

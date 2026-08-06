@@ -29,4 +29,18 @@ export default defineConfig(
 		},
 	},
 	...obsidianmd.configs.recommended,
+	{
+		files: ['src/desktop-extract.ts'],
+		languageOptions: {
+			globals: {
+				...globals.browser,
+				...globals.node,
+			},
+		},
+		rules: {
+			// Whisper multipart upload needs FormData; requestUrl does not support it well.
+			'obsidianmd/no-fetch-in-obsidian': 'off',
+			'no-restricted-globals': 'off',
+		},
+	},
 );

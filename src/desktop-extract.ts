@@ -36,7 +36,8 @@ export function isMediaUrl(url: string): boolean {
 }
 
 function nodeRequire(name: string): unknown {
-	// eslint-disable-next-line @typescript-eslint/no-require-imports
+	// Desktop-only: load Node builtins at runtime so mobile bundles stay safe.
+	// eslint-disable-next-line @typescript-eslint/no-require-imports -- Node require for desktop-only modules
 	return require(name);
 }
 
@@ -65,7 +66,7 @@ function ffmpegArgs(ffmpegLocation: string): string[] {
 	return loc ? ['--ffmpeg-location', loc] : [];
 }
 
-function spawnEnv(): NodeJS.ProcessEnv {
+function spawnEnv(): Record<string, string | undefined> {
 	const path = nodeRequire('path') as typeof import('path');
 	const extras = ['/opt/homebrew/bin', '/usr/local/bin'];
 	const current = process.env.PATH ?? '';
@@ -128,10 +129,10 @@ async function runCommand(
 		});
 		let stdout = '';
 		let stderr = '';
-		child.stdout?.on('data', (chunk: Buffer | string) => {
+		child.stdout?.on('data', (chunk: string | Uint8Array) => {
 			stdout += chunk.toString();
 		});
-		child.stderr?.on('data', (chunk: Buffer | string) => {
+		child.stderr?.on('data', (chunk: string | Uint8Array) => {
 			stderr += chunk.toString();
 		});
 		child.on('error', (err) => {

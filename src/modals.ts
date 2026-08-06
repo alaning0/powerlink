@@ -128,10 +128,10 @@ export class UrlPickerModal extends Modal {
 	private selectLink(link: IdeaLink): void {
 		this.urlInput = link.url;
 		this.selectedIdeaId = link.id;
-		const input = this.contentEl.querySelector(
-			'.powerlink-url-input',
-		) as HTMLInputElement | null;
-		if (input) input.value = link.url;
+		const input = this.contentEl.querySelector('.powerlink-url-input');
+		if (input instanceof HTMLInputElement) {
+			input.value = link.url;
+		}
 	}
 
 	private submit(): void {
@@ -259,7 +259,7 @@ export class LinkOrCloseModal extends Modal {
 		});
 
 		const insertBtn = actions.createEl('button', {
-			text: 'Insert Link',
+			text: 'Insert link',
 			cls: 'mod-cta',
 		});
 		insertBtn.addEventListener('click', () => {
