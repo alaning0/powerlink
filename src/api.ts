@@ -133,7 +133,133 @@ export function htmlToText(html: string): string {
 	return text.trim();
 }
 
+export function isRedditUrl(url: string): boolean {
+	try {
+		const host = new URL(url.trim()).hostname.toLowerCase();
+		return host === 'reddit.com' || host.endsWith('.reddit.com');
+	} catch {
+		return false;
+	}
+}
+
+/** Strip query/hash, then ensure path ends with .json. */
+export function toRedditJsonUrl(url: string): string {
+	const parsed = new URL(url.trim());
+	parsed.search = '';
+	parsed.hash = '';
+	let path = parsed.pathname.replace(/\/+$/, '');
+	if (!path.toLowerCase().endsWith('.json')) {
+		path = `${path}.json`;
+	}
+	parsed.pathname = path;
+	return parsed.toString();
+}
+
+function isSkippedRedditBody(value: string): boolean {
+	const v = value.trim();
+	if (!v) return true;
+	const lower = v.toLowerCase();
+	return lower === '[deleted]' || lower === '[removed]';
+}
+
+/** Recursively collect every string `body` field from Reddit JSON. */
+export function collectRedditBodies(node: unknown, out: string[] = []): string[] {
+	if (node == null) return out;
+
+	if (Array.isArray(node)) {
+		for (const item of node) {
+			collectRedditBodies(item, out);
+		}
+		return out;
+	}
+
+	if (typeof node === 'object') {
+		const obj = node as Record<string, unknown>;
+		const body = obj.body;
+		if (typeof body === 'string' && !isSkippedRedditBody(body)) {
+			out.push(body.trim());
+		}
+		for (const value of Object.values(obj)) {
+			collectRedditBodies(value, out);
+		}
+	}
+
+	return out;
+}
+
+/** Prefer post title from the first listing’s first child. */
+export function extractRedditTitle(data: unknown): string {
+	if (!Array.isArray(data) || data.length === 0) return '';
+	const listing = data[0] as { data?: { children?: Array<{ data?: { title?: string } }> } };
+	const title = listing?.data?.children?.[0]?.data?.title;
+	return typeof title === 'string' ? cleanTitleCandidate(title) : '';
+}
+
+export async function fetchRedditPage(url: string): Promise<FetchedPage> {
+	const jsonUrl = toRedditJsonUrl(url);
+	const res = await requestUrl({
+		url: jsonUrl,
+		method: 'GET',
+		headers: {
+			Accept: 'application/json',
+			'User-Agent':
+				'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15',
+		},
+	});
+
+	if (res.status >= 400) {
+		throw new Error(`Reddit JSON request failed (${res.status})`);
+	}
+
+	let data: unknown = res.json;
+	if (data == null || typeof data === 'string') {
+		const raw =
+			typeof res.text === 'string' && res.text.length > 0
+				? res.text
+				: typeof data === 'string'
+					? data
+					: '';
+		if (!raw) {
+			throw new Error('Reddit JSON response was empty');
+		}
+		if (/^\s*</.test(raw)) {
+			throw new Error(
+				'Reddit returned HTML instead of JSON (blocked or login wall)',
+			);
+		}
+		try {
+			data = JSON.parse(raw) as unknown;
+		} catch {
+			throw new Error('Failed to parse Reddit JSON response');
+		}
+	}
+
+	const title = extractRedditTitle(data);
+	const bodies = collectRedditBodies(data);
+	let text = bodies.join('\n\n').trim();
+
+	if (!text && title) {
+		text = title;
+	}
+
+	if (!text) {
+		throw new Error('Could not extract Reddit comment bodies from JSON');
+	}
+
+	if (text.length > MAX_PAGE_CHARS) {
+		text =
+			text.slice(0, MAX_PAGE_CHARS) +
+			'\n\n[Page content truncated for length]';
+	}
+
+	return { title, text };
+}
+
 export async function fetchPage(url: string): Promise<FetchedPage> {
+	if (isRedditUrl(url)) {
+		return fetchRedditPage(url);
+	}
+
 	const res = await requestUrl({
 		url,
 		method: 'GET',
