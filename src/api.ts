@@ -349,23 +349,109 @@ export async function fetchRecentIdeaUrls(
 export async function deleteIdea(
 	ideasApiUrl: string,
 	ideaId: number,
+	apiKey?: string,
 ): Promise<void> {
 	const base = ideasApiUrl.trim().replace(/\/+$/, '');
 	const url = /\/ideas\/?\d*$/i.test(base)
 		? base.replace(/\/ideas\/?\d*$/i, `/ideas/${ideaId}`)
 		: `${base}/ideas/${ideaId}`;
 
-	const res = await requestUrl({
-		url,
-		method: 'DELETE',
-	});
-
-	const data = res.json as { ok?: boolean; error?: string; id?: number };
-	if (data?.error) {
-		throw new Error(data.error);
+	const headers: Record<string, string> = {};
+	const key = apiKey?.trim();
+	if (key) {
+		headers.Authorization = `Bearer ${key}`;
+		headers['X-Api-Key'] = key;
 	}
-	if (data && data.ok === false) {
-		throw new Error(`Failed to delete idea ${ideaId}`);
+
+	try {
+		const res = await requestUrl({
+			url,
+			method: 'DELETE',
+			headers,
+		});
+
+		const data = res.json as { ok?: boolean; error?: string; id?: number };
+		if (data?.error) {
+			throw new Error(data.error);
+		}
+		if (data && data.ok === false) {
+			throw new Error(`Failed to delete idea ${ideaId}`);
+		}
+	} catch (err) {
+		const message = err instanceof Error ? err.message : String(err);
+		if (/401|unauthorized/i.test(message)) {
+			throw new Error(
+				'Unauthorized — set Ideas API key in Powerlink settings',
+			);
+		}
+		throw err instanceof Error ? err : new Error(message);
+	}
+}
+
+/**
+ * Non-destructive Ideas API check: GET list, then DELETE a fake id to verify auth.
+ * Returns a short human-readable status string.
+ */
+export async function testIdeasApi(
+	ideasApiUrl: string,
+	apiKey: string,
+): Promise<string> {
+	const listUrl = ideasApiUrl.trim();
+	if (!listUrl) {
+		throw new Error('Ideas API URL is empty');
+	}
+
+	const listRes = await requestUrl({
+		url: listUrl,
+		method: 'GET',
+	});
+	const listData = listRes.json as { ideas?: unknown[]; error?: string };
+	if (listData?.error) {
+		throw new Error(listData.error);
+	}
+	const count = Array.isArray(listData?.ideas) ? listData.ideas.length : 0;
+
+	const key = apiKey.trim();
+	if (!key) {
+		return `List OK (${count} ideas). No API key set — delete will fail with 401.`;
+	}
+
+	const base = listUrl.replace(/\/+$/, '');
+	const probeUrl = /\/ideas\/?\d*$/i.test(base)
+		? base.replace(/\/ideas\/?\d*$/i, '/ideas/999999999')
+		: `${base}/ideas/999999999`;
+
+	try {
+		const delRes = await requestUrl({
+			url: probeUrl,
+			method: 'DELETE',
+			headers: {
+				Authorization: `Bearer ${key}`,
+				'X-Api-Key': key,
+			},
+		});
+		const delData = delRes.json as { ok?: boolean; error?: string };
+		if (delData?.error) {
+			// "Idea not found" means auth passed
+			if (/not found/i.test(delData.error)) {
+				return `List OK (${count} ideas). Auth OK (delete probe: not found).`;
+			}
+			throw new Error(delData.error);
+		}
+		return `List OK (${count} ideas). Auth OK.`;
+	} catch (err) {
+		const message = err instanceof Error ? err.message : String(err);
+		if (/401|unauthorized/i.test(message)) {
+			throw new Error(
+				`List OK (${count} ideas), but auth failed (401). Check Ideas API key.`,
+			);
+		}
+		if (/404|not found/i.test(message)) {
+			return `List OK (${count} ideas). Auth OK (delete probe: not found).`;
+		}
+		throw new Error(
+			`List OK (${count} ideas). Auth check failed: ${message}`,
+		);
 	}
 }
 

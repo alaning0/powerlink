@@ -13,6 +13,7 @@ import {
 	generateFromTranscript,
 	generateFromUrl,
 	sanitizeFilename,
+	testIdeasApi,
 	type GenerateResult,
 } from './api';
 import {
@@ -74,6 +75,23 @@ export default class PowerlinkPlugin extends Plugin {
 
 	async saveSettings() {
 		await this.saveData(this.settings);
+	}
+
+	async testIdeasApi(): Promise<void> {
+		const loading = new Notice('Testing Ideas API…', 0);
+		try {
+			const message = await testIdeasApi(
+				this.settings.ideasApiUrl,
+				this.settings.ideasApiKey,
+			);
+			new Notice(message, 8000);
+		} catch (err) {
+			const message = err instanceof Error ? err.message : String(err);
+			new Notice(`Ideas API test failed: ${message}`, 8000);
+			console.error(err);
+		} finally {
+			loading.hide();
+		}
 	}
 
 	private startFlow(advanced: boolean): void {
@@ -230,7 +248,11 @@ export default class PowerlinkPlugin extends Plugin {
 		}
 
 		try {
-			await deleteIdea(this.settings.ideasApiUrl, ideaId);
+			await deleteIdea(
+				this.settings.ideasApiUrl,
+				ideaId,
+				this.settings.ideasApiKey,
+			);
 			new Notice(`Removed idea #${ideaId} from Ideas API`);
 		} catch (err) {
 			const message = err instanceof Error ? err.message : String(err);

@@ -3,6 +3,7 @@ import type PowerlinkPlugin from './main';
 
 export interface PowerlinkSettings {
 	ideasApiUrl: string;
+	ideasApiKey: string;
 	openaiApiKey: string;
 	openaiModel: string;
 	prompt: string;
@@ -17,6 +18,7 @@ export interface PowerlinkSettings {
 
 export const DEFAULT_SETTINGS: PowerlinkSettings = {
 	ideasApiUrl: 'https://alaning-me-api.alaning0.workers.dev/api/ideas',
+	ideasApiKey: '',
 	openaiApiKey: '',
 	openaiModel: 'gpt-4o-mini',
 	prompt: 'Summarize this URL for my notes.',
@@ -54,6 +56,33 @@ export class PowerlinkSettingTab extends PluginSettingTab {
 						this.plugin.settings.ideasApiUrl = value.trim();
 						await this.plugin.saveSettings();
 					}),
+			);
+
+		new Setting(containerEl)
+			.setName('Ideas API key')
+			.setDesc(
+				'Bearer key for delete (and Shortcut POST /api). Same as the Worker API_KEY secret.',
+			)
+			.addText((text) => {
+				text
+					.setPlaceholder('API key')
+					.setValue(this.plugin.settings.ideasApiKey)
+					.onChange(async (value) => {
+						this.plugin.settings.ideasApiKey = value.trim();
+						await this.plugin.saveSettings();
+					});
+				text.inputEl.type = 'password';
+			});
+
+		new Setting(containerEl)
+			.setName('Test Ideas API')
+			.setDesc(
+				'Checks list (GET) and auth (DELETE of a non-existent id). Does not remove real ideas.',
+			)
+			.addButton((btn) =>
+				btn.setButtonText('Test').onClick(() => {
+					void this.plugin.testIdeasApi();
+				}),
 			);
 
 		new Setting(containerEl)
