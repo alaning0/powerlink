@@ -345,6 +345,39 @@ export async function fetchRecentIdeaUrls(
 	return links;
 }
 
+export interface IdeaWithTitle {
+	id: number;
+	url: string;
+	title?: string;
+}
+
+export async function fetchAllIdeaUrls(
+	ideasApiUrl: string,
+): Promise<IdeaWithTitle[]> {
+	const res = await requestUrl({
+		url: ideasApiUrl,
+		method: 'GET',
+	});
+
+	const data = res.json as { ideas?: Idea[] };
+	const ideas = Array.isArray(data?.ideas) ? data.ideas : [];
+
+	const links: IdeaWithTitle[] = [];
+	const seen = new Set<string>();
+	for (const idea of ideas) {
+		const ideaTitle = (idea.title ?? '').trim();
+		if (!isHttpUrl(ideaTitle) || seen.has(ideaTitle)) continue;
+		seen.add(ideaTitle);
+		const desc = (idea.description ?? '').trim();
+		links.push({
+			id: idea.id,
+			url: ideaTitle,
+			title: desc || undefined,
+		});
+	}
+	return links;
+}
+
 /** DELETE /api/ideas/:id — ideasApiUrl may be the list endpoint or a base. */
 export async function deleteIdea(
 	ideasApiUrl: string,
