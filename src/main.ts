@@ -16,6 +16,13 @@ import {
 	type GenerateResult,
 } from './api';
 import {
+	BulkImportModal,
+	BulkProgressModal,
+	BulkSummaryModal,
+	type BulkSelection,
+	type BulkSummary,
+} from './bulk-import';
+import {
 	extractMediaTranscript,
 	isMediaUrl,
 } from './desktop-extract';
@@ -56,6 +63,16 @@ export default class PowerlinkPlugin extends Plugin {
 				id: 'open-advanced',
 				name: 'Open advanced',
 				callback: () => this.startFlow(true),
+			});
+
+			this.addRibbonIcon('layers', 'Powerlink bulk import', () => {
+				this.startBulkFlow();
+			});
+
+			this.addCommand({
+				id: 'bulk-import',
+				name: 'Bulk import from ideas',
+				callback: () => this.startBulkFlow(),
 			});
 		}
 
@@ -323,5 +340,116 @@ export default class PowerlinkPlugin extends Plugin {
 		}
 
 		return this.app.vault.create(path, content);
+	}
+
+	private startBulkFlow(): void {
+		if (!this.settings.notesFolder.trim()) {
+			new Notice('Set a notes folder in Powerlink settings before bulk import');
+			return;
+		}
+
+		if (!this.settings.openaiApiKey.trim()) {
+			new Notice('Set your OpenAI API key in Powerlink settings');
+			return;
+		}
+
+		new BulkImportModal(
+			this.app,
+			this.settings.ideasApiUrl,
+			(selections) => {
+				void this.runBulkImport(selections);
+			},
+		).open();
+	}
+
+	private async runBulkImport(selections: BulkSelection[]): Promise<void> {
+		const summary: BulkSummary = {
+			created: 0,
+			failed: 0,
+			deleted: 0,
+			failures: [],
+			cancelled: false,
+		};
+
+		let cancelled = false;
+		const progressModal = new BulkProgressModal(
+			this.app,
+			selections.length,
+			{
+				onCancel: () => {
+					cancelled = true;
+				},
+			},
+		);
+		progressModal.open();
+
+		for (let i = 0; i < selections.length; i++) {
+			if (cancelled) {
+				summary.cancelled = true;
+				break;
+			}
+
+			const selection = selections[i];
+			if (!selection) continue;
+
+			const { id: ideaId, url } = selection;
+			progressModal.updateProgress(i + 1, url);
+
+			try {
+				const result = await this.processUrlForBulk(url);
+				const content = formatNoteContent(url, result.body);
+				await this.createNoteInFolder(result.filename, content);
+				summary.created += 1;
+
+				if (this.settings.deleteIdeaAfterSuccess && this.settings.ideasApiUrl.trim()) {
+					try {
+						await deleteIdea(this.settings.ideasApiUrl, ideaId);
+						summary.deleted += 1;
+					} catch (err) {
+						console.error(`Failed to delete idea #${ideaId}:`, err);
+					}
+				}
+			} catch (err) {
+				summary.failed += 1;
+				const message = err instanceof Error ? err.message : String(err);
+				summary.failures.push({ url, error: message });
+				console.error(`Bulk import failed for ${url}:`, err);
+			}
+		}
+
+		progressModal.close();
+		new BulkSummaryModal(this.app, summary).open();
+	}
+
+	private async processUrlForBulk(url: string): Promise<GenerateResult> {
+		const useAdvanced = Platform.isDesktopApp && isMediaUrl(url);
+
+		if (useAdvanced) {
+			const extracted = await extractMediaTranscript({
+				url,
+				ytDlpPath: this.settings.ytDlpPath,
+				ffmpegLocation: this.settings.ffmpegLocation,
+				cookiesFile: this.settings.cookiesFile,
+				cookiesFromBrowser: this.settings.cookiesFromBrowser,
+				openaiApiKey: this.settings.openaiApiKey,
+				whisperModel: this.settings.whisperModel,
+			});
+
+			return generateFromTranscript({
+				apiKey: this.settings.openaiApiKey,
+				model: this.settings.openaiModel,
+				prompt: this.settings.prompt,
+				url,
+				transcript: extracted.transcript,
+				titleHint: extracted.titleHint,
+			});
+		}
+
+		return generateFromUrl({
+			apiKey: this.settings.openaiApiKey,
+			model: this.settings.openaiModel,
+			prompt: this.settings.prompt,
+			url,
+		});
 	}
 }

@@ -17,8 +17,14 @@ Paste a link, or pull a recent URL from your [Ideas API](https://alaning-me-api.
   - Runs `yt-dlp` with a cookies file (or browser cookies)
   - Prefers captions; falls back to OpenAI Whisper on extracted audio
   - Feeds the transcript into the same note-generation prompt
+- **Bulk import (desktop only)** — process multiple URLs from Ideas API at once:
+  - Multi-select checklist with all ideas from the API
+  - Sequential processing (one at a time)
+  - Automatically uses Advanced mode for YouTube/Instagram URLs
+  - Progress display with cancel option
+  - Summary of created/failed/deleted notes at the end
 
-Normal mode works on mobile. Advanced mode registers only on desktop (`Platform.isDesktopApp`).
+Normal mode works on mobile. Advanced and Bulk import modes register only on desktop (`Platform.isDesktopApp`).
 
 ## Install (manual)
 
